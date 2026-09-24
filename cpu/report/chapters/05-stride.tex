@@ -1,0 +1,83 @@
+\chapter{Исследование \texttt{stride} и пространственной локальности}
+\label{ch:stride}
+
+\section{Параметры исследования}
+
+Размер массива превышает объём исследуемого кэша: $N = 10^7$, $\mathit{repeats} = 20$.
+Размер строки кэша --- \texttt{128 B}.
+
+Количество фактических обращений и нормализованная стоимость одного обращения:
+$$
+N_{access} = \frac{N}{\mathit{stride}} \times \mathit{repeats}, \qquad
+\mathit{cycles/access} = \frac{\mathit{cycles}}{N_{access}}.
+$$
+
+L1d miss rate рассчитывается так же, как в главе~\ref{ch:working-set}.
+Утилита \texttt{mperf}, как и \texttt{perf stat}, учитывает весь процесс, включая выделение и заполнение массивов.
+Эта часть не зависит от \texttt{stride} и при больших \texttt{stride} сопоставима с самим циклом, поэтому из всех показателей вычитается запуск с $\mathit{repeats} = 0$.
+
+\begin{commands}
+sudo python3 scripts/stride.py
+\end{commands}
+
+\includescript{stride.py}{Измерения для разных значений \texttt{stride}}
+
+\section{Измеренные показатели}
+
+Показатели холостого запуска: \texttt{cycles} --- \texttt{64410983}, загрузки --- \texttt{2612952}, промахи L1d --- \texttt{204891}.
+
+\begin{table}[H]
+\caption{Зависимость показателей от \texttt{stride}}
+\label{tab:stride}
+\small
+\begin{tabularx}{\textwidth}{|r|r|C|C|C|C|}
+	\hline
+	\texttt{stride} & $N_{access}$ & \texttt{cycles} & \textit{cycles/ access} & Промахи L1d & L1d miss rate, \% \\
+	\hline
+	\texttt{1} & \texttt{200000000} & \texttt{230063313} & \texttt{1.15} & \texttt{11096310} & \texttt{2.77} \\
+	\hline
+	\texttt{2} & \texttt{100000000} & \texttt{165006890} & \texttt{1.65} & \texttt{13896876} & \texttt{6.95} \\
+	\hline
+	\texttt{4} & \texttt{50000000} & \texttt{163639851} & \texttt{3.27} & \texttt{40323205} & \texttt{40.32} \\
+	\hline
+	\texttt{8} & \texttt{25000000} & \texttt{156800735} & \texttt{6.27} & \texttt{37317107} & \texttt{74.63} \\
+	\hline
+	\texttt{16} & \texttt{12500000} & \texttt{233745496} & \texttt{18.70} & \texttt{24352419} & \texttt{97.41} \\
+	\hline
+	\texttt{32} & \texttt{6250000} & \texttt{149043598} & \texttt{23.85} & \texttt{11925774} & \texttt{95.41} \\
+	\hline
+	\texttt{64} & \texttt{3125000} & \texttt{81764859} & \texttt{26.16} & \texttt{6106280} & \texttt{97.70} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\pgfplotstableread{data/stride.dat}\stridedata
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.95\textwidth,
+			height=7cm,
+			font=\small,
+			xmode=log,
+			log basis x=2,
+			xtick={1,2,4,8,16,32,64},
+			xticklabels={1,2,4,8,16,32,64},
+			extra x ticks={16},
+			extra x tick labels={строка кэша},
+			extra x tick style={xticklabel pos=upper, grid=major, major grid style={dashed}},
+			xlabel={\texttt{stride}},
+			ylabel={\textit{cycles/access}},
+		]
+			\addplot[mark=*] table[x=stride, y=cycles_per_access]{\stridedata};
+		\end{axis}
+	\end{tikzpicture}
+	\caption{Зависимость \textit{cycles/access} от \texttt{stride}}
+	\label{fig:stride-cycles}
+\end{figure}
+
+\section{Вывод}
+
+В пятом этапе получена зависимость cycles/access и показателей промахов кэша от stride.
+До stride = 8 стоимость обращения растёт почти вдвое при каждом увеличении шага, так как из загруженной строки кэша используется всё меньше элементов.
+При stride = 16 каждое обращение попадает в новую строку (128 B = 16 элементов double), промахи L1d достигают 97\% и cycles/access резко возрастает, дальше рост замедляется.

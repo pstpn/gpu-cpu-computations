@@ -1,0 +1,76 @@
+\chapter{Исследование влияния типа данных}
+\label{ch:data-type}
+
+\section{Параметры исследования}
+
+Одинаковые замеры выполняются для \texttt{run\_daxpy<double>} и \texttt{run\_daxpy<float>} с одинаковыми значениями \texttt{N}, \texttt{repeats} и \texttt{stride}:
+$$
+W = 2N \times \mathit{sizeof}(T).
+$$
+
+Тип элементов задаётся при сборке макросом \texttt{TYPE}.
+При \texttt{N = 4096} рабочий набор обоих типов помещается в L1d, при \texttt{N = 12288} и \texttt{N = 1572864} рабочий набор \texttt{float} помещается в L1d и L2 соответственно, а \texttt{double} --- нет.
+Как и в главе~\ref{ch:working-set}, $N \times \mathit{repeats} = 2^{30}$, $\mathit{stride} = 1$, а \textit{cycles/access} и L1d miss rate рассчитываются по тем же формулам.
+
+\begin{commands}
+g++ daxpy.cpp -O3 -std=c++17 -o daxpy
+g++ daxpy.cpp -O3 -std=c++17 -DTYPE=float -o daxpy_float
+sudo python3 scripts/data_type.py
+\end{commands}
+
+\includescript{data_type.py}{Измерения для \texttt{float} и \texttt{double}}
+
+\section{Измеренные показатели}
+
+\begin{table}[H]
+\caption{Показатели производительности \texttt{float} и \texttt{double}}
+\label{tab:data-type}
+\small
+\begin{tabularx}{\textwidth}{|r|r|l|r|C|C|C|}
+	\hline
+	$N$ & \texttt{repeats} & Тип & $W$ & Время, с & \texttt{cycles} & \textit{cycles/ access} \\
+	\hline
+	\texttt{4096} & \texttt{262144} & \texttt{float} & \texttt{32 KiB} & \texttt{0.286} & \texttt{1142626701} & \texttt{1.064} \\
+	\hline
+	\texttt{4096} & \texttt{262144} & \texttt{double} & \texttt{64 KiB} & \texttt{0.299} & \texttt{1156977504} & \texttt{1.078} \\
+	\hline
+	\texttt{12288} & \texttt{87381} & \texttt{float} & \texttt{96 KiB} & \texttt{0.287} & \texttt{1099099413} & \texttt{1.024} \\
+	\hline
+	\texttt{12288} & \texttt{87381} & \texttt{double} & \texttt{192 KiB} & \texttt{0.307} & \texttt{1168321217} & \texttt{1.088} \\
+	\hline
+	\texttt{1572864} & \texttt{682} & \texttt{float} & \texttt{12 MiB} & \texttt{0.293} & \texttt{1197144128} & \texttt{1.116} \\
+	\hline
+	\texttt{1572864} & \texttt{682} & \texttt{double} & \texttt{24 MiB} & \texttt{0.313} & \texttt{1230434748} & \texttt{1.147} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Показатели промахов кэша \texttt{float} и \texttt{double}}
+\label{tab:data-type-cache}
+\small
+\begin{tabularx}{\textwidth}{|r|l|C|C|C|}
+	\hline
+	$N$ & Тип & Промахи L1d & L1d miss rate, \% & Тактов ожидания на промах \\
+	\hline
+	\texttt{4096} & \texttt{float} & \texttt{8964} & \texttt{0.00} & \texttt{2.98} \\
+	\hline
+	\texttt{4096} & \texttt{double} & \texttt{15788} & \texttt{0.00} & \texttt{2.99} \\
+	\hline
+	\texttt{12288} & \texttt{float} & \texttt{115395} & \texttt{0.01} & \texttt{1.10} \\
+	\hline
+	\texttt{12288} & \texttt{double} & \texttt{30539590} & \texttt{1.42} & \texttt{0.17} \\
+	\hline
+	\texttt{1572864} & \texttt{float} & \texttt{49020204} & \texttt{2.28} & \texttt{0.27} \\
+	\hline
+	\texttt{1572864} & \texttt{double} & \texttt{59025652} & \texttt{2.75} & \texttt{0.41} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\section{Вывод}
+
+В шестом этапе получено сравнение float и double при одинаковых N, repeats и stride.
+Элемент float вдвое меньше, поэтому при том же N рабочий набор float вдвое меньше и помещается в более близкий уровень кэша: при N = 12288 рабочий набор float (96 KiB) помещается в L1d и промахов практически нет, а у double (192 KiB) доля промахов L1d составляет 1,42\%.
+При N = 1572864 рабочий набор float (12 MiB) помещается в L2, а double (24 MiB) --- нет, поэтому у double больше тактов ожидания на промах (0,41 против 0,27).
+Когда оба рабочих набора помещаются в L1d, cycles/access почти не отличается, так как число инструкций на элемент одинаково.

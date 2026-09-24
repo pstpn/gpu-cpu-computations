@@ -1,0 +1,61 @@
+\chapter{Исследование предсказателя переходов}
+\label{ch:branch}
+
+\section{Параметры исследования}
+
+Программа \texttt{branch\_test} заполняет массив условий \texttt{cond} и массив данных \texttt{data} из \texttt{N} элементов и выполняет тестовый цикл:
+
+\begin{lstlisting}[style=code, language=C++]
+for (size_t r = 0; r < repeats; r++) {
+    for (size_t i = 0; i < n; i++) {
+        if (cond[i]) {
+            sum += data[i];
+        }
+    }
+}
+\end{lstlisting}
+
+Режимы:
+\begin{itemize}
+	\item предсказуемый --- условие имеет почти постоянное поведение: истинно для первой половины массива и ложно для второй;
+	\item непредсказуемый --- используется заранее сформированная случайная последовательность условий.
+\end{itemize}
+
+В обоих режимах условие истинно примерно для половины элементов, поэтому объём вычислений одинаков.
+
+Аналоги \texttt{branches} и \texttt{branch-misses} (таблица~\ref{tab:events-branch}) --- \texttt{INST\_BRANCH} и \texttt{BRANCH\_MISPRED\_NONSPEC}.
+Доля ошибочных предсказаний:
+$$
+\mathit{Branch\ miss\ rate} = \frac{\mathit{branch\ misses}}{\mathit{branches}}.
+$$
+
+Как и в главе~\ref{ch:stride}, из всех показателей вычитается запуск с $\mathit{repeats} = 0$.
+
+\begin{commands}
+g++ branch_test.cpp -O3 -std=c++17 -o branch_test
+sudo python3 scripts/branch.py
+\end{commands}
+
+\includescript{branch.py}{Измерения для двух режимов условия}
+
+\section{Измеренные показатели}
+
+\begin{table}[H]
+\caption{Предсказуемые и непредсказуемые переходы}
+\label{tab:branch}
+\small
+\begin{tabularx}{\textwidth}{|l|C|C|C|C|C|}
+	\hline
+	Режим & \texttt{branches} & \texttt{branch-\allowbreak misses} & Branch miss rate, \% & Время, с & \texttt{cycles} \\
+	\hline
+	Предсказуемый & \texttt{118750413} & \texttt{801} & \texttt{0.00} & \texttt{0.030} & \texttt{106547396} \\
+	\hline
+	Непредсказуемый & \texttt{118762321} & \texttt{47855817} & \texttt{40.30} & \texttt{0.223} & \texttt{913378231} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\section{Вывод}
+
+В восьмом этапе получены значения branches, branch-misses, branch miss rate и времени выполнения для предсказуемого и непредсказуемого режимов.
+При одинаковом числе переходов в непредсказуемом режиме доля ошибочных предсказаний составляет 40,3\% против практически нулевой в предсказуемом, а число тактов увеличивается в 8.6 раза.

@@ -1,0 +1,146 @@
+\chapter{Исследование размера рабочего набора и кэш-памяти}
+\label{ch:working-set}
+
+\section{Параметры исследования}
+
+Для типа \texttt{double} и двух массивов приблизительный размер рабочего набора:
+$$
+W = 2N \times 8.
+$$
+
+При изменении \texttt{N} число повторов \texttt{repeats} корректируется так, чтобы величина $N \times \mathit{repeats} = 2^{30}$ оставалась постоянной.
+Нормализованная стоимость одного обращения и доля промахов L1d:
+$$
+\mathit{cycles/access} = \frac{\mathit{cycles}}{N \times \mathit{repeats}},
+$$
+$$
+\mathit{L1d\ miss\ rate} = \frac{\texttt{L1D\_CACHE\_MISS\_LD\_NONSPEC}}{\texttt{INST\_INT\_LD} + \texttt{INST\_SIMD\_LD}}.
+$$
+
+Событий кэша L2 в PMU Apple M3 нет.
+Каждый промах L1d при загрузке --- обращение к L2, а удалённость источника данных оценивается по числу тактов ожидания на один промах:
+$$
+\frac{\texttt{LDST\_UNIT\_OLD\_L1D\_CACHE\_MISS}}{\texttt{L1D\_CACHE\_MISS\_LD\_NONSPEC}}.
+$$
+
+\begin{commands}
+make libmperf.dylib
+sudo python3 scripts/working_set.py
+\end{commands}
+
+\includescript{working_set.py}{Измерения для разных размеров рабочего набора}
+
+\section{Измеренные показатели}
+
+\begin{table}[H]
+\caption{Показатели производительности}
+\label{tab:working-set}
+\small
+\begin{tabularx}{\textwidth}{|l|r|r|C|r|C|C|}
+	\hline
+	$W$ & $N$ & \texttt{repeats} & Время, с & \texttt{cycles} & IPC & \textit{cycles/ access} \\
+	\hline
+	\texttt{4 KiB} & \texttt{256} & \texttt{4194304} & \texttt{0.312} & \texttt{1244479032} & \texttt{6.05} & \texttt{1.159} \\
+	\hline
+	\texttt{16 KiB} & \texttt{1024} & \texttt{1048576} & \texttt{0.291} & \texttt{1148942656} & \texttt{6.55} & \texttt{1.070} \\
+	\hline
+	\texttt{32 KiB} & \texttt{2048} & \texttt{524288} & \texttt{0.286} & \texttt{1145517636} & \texttt{6.56} & \texttt{1.067} \\
+	\hline
+	\texttt{64 KiB} & \texttt{4096} & \texttt{262144} & \texttt{0.283} & \texttt{1123702031} & \texttt{6.69} & \texttt{1.047} \\
+	\hline
+	\texttt{256 KiB} & \texttt{16384} & \texttt{65536} & \texttt{0.295} & \texttt{1167057147} & \texttt{6.44} & \texttt{1.087} \\
+	\hline
+	\texttt{1 MiB} & \texttt{65536} & \texttt{16384} & \texttt{0.304} & \texttt{1174554774} & \texttt{6.40} & \texttt{1.094} \\
+	\hline
+	\texttt{4 MiB} & \texttt{262144} & \texttt{4096} & \texttt{0.316} & \texttt{1256712693} & \texttt{5.98} & \texttt{1.170} \\
+	\hline
+	\texttt{16 MiB} & \texttt{1048576} & \texttt{1024} & \texttt{0.319} & \texttt{1240140494} & \texttt{6.07} & \texttt{1.155} \\
+	\hline
+	\texttt{64 MiB} & \texttt{4194304} & \texttt{256} & \texttt{0.331} & \texttt{1288751981} & \texttt{5.86} & \texttt{1.200} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Показатели промахов кэша}
+\label{tab:working-set-cache}
+\small
+\begin{tabularx}{\textwidth}{|l|C|C|C|C|C|}
+	\hline
+	$W$ & Загрузки & Промахи L1d & L1d miss rate, \% & Такты ожидания & Тактов ожидания на промах \\
+	\hline
+	\texttt{4 KiB} & \texttt{2147596310} & \texttt{2858} & \texttt{0.00} & \texttt{17128} & \texttt{5.99} \\
+	\hline
+	\texttt{16 KiB} & \texttt{2147596667} & \texttt{5104} & \texttt{0.00} & \texttt{29308} & \texttt{5.74} \\
+	\hline
+	\texttt{32 KiB} & \texttt{2147596904} & \texttt{5498} & \texttt{0.00} & \texttt{20939} & \texttt{3.81} \\
+	\hline
+	\texttt{64 KiB} & \texttt{2147597402} & \texttt{11723} & \texttt{0.00} & \texttt{32300} & \texttt{2.76} \\
+	\hline
+	\texttt{256 KiB} & \texttt{2147600785} & \texttt{23299225} & \texttt{1.08} & \texttt{4236049} & \texttt{0.18} \\
+	\hline
+	\texttt{1 MiB} & \texttt{2147613032} & \texttt{5889122} & \texttt{0.27} & \texttt{1157559} & \texttt{0.20} \\
+	\hline
+	\texttt{4 MiB} & \texttt{2147662114} & \texttt{59094045} & \texttt{2.75} & \texttt{17935829} & \texttt{0.30} \\
+	\hline
+	\texttt{16 MiB} & \texttt{2147858565} & \texttt{60548157} & \texttt{2.82} & \texttt{28326887} & \texttt{0.47} \\
+	\hline
+	\texttt{64 MiB} & \texttt{2148645014} & \texttt{59736871} & \texttt{2.78} & \texttt{25737795} & \texttt{0.43} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\pgfplotstableread{data/working-set.dat}\workingset
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.95\textwidth,
+			height=7cm,
+			font=\small,
+			xmode=log,
+			log basis x=2,
+			xtick={4,16,64,256,1024,4096,16384,65536},
+			xticklabels={4 KiB,16 KiB,64 KiB,256 KiB,1 MiB,4 MiB,16 MiB,64 MiB},
+			extra x ticks={128,16384},
+			extra x tick labels={L1d,L2},
+			extra x tick style={xticklabel pos=upper, grid=major, major grid style={dashed}},
+			xlabel={$W$},
+			ylabel={\textit{cycles/access}},
+		]
+			\addplot[mark=*] table[x=W_KiB, y=cycles_per_access]{\workingset};
+		\end{axis}
+	\end{tikzpicture}
+	\caption{Зависимость \textit{cycles/access} от размера рабочего набора}
+	\label{fig:working-set-cycles}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			width=0.95\textwidth,
+			height=7cm,
+			font=\small,
+			xmode=log,
+			log basis x=2,
+			xtick={4,16,64,256,1024,4096,16384,65536},
+			xticklabels={4 KiB,16 KiB,64 KiB,256 KiB,1 MiB,4 MiB,16 MiB,64 MiB},
+			extra x ticks={128,16384},
+			extra x tick labels={L1d,L2},
+			extra x tick style={xticklabel pos=upper, grid=major, major grid style={dashed}},
+			xlabel={$W$},
+			ylabel={L1d miss rate, \%},
+		]
+			\addplot[mark=*] table[x=W_KiB, y=l1d_miss_rate]{\workingset};
+		\end{axis}
+	\end{tikzpicture}
+	\caption{Зависимость cache miss rate от размера рабочего набора}
+	\label{fig:working-set-miss-rate}
+\end{figure}
+
+\section{Вывод}
+
+В четвёртом этапе получены зависимости времени выполнения, cycles, IPC и показателей промахов кэша от размера рабочего набора.
+До 64 KiB рабочий набор помещается в L1d и промахов практически нет, после 128 KiB появляются промахи L1d, после 16 MiB растёт число тактов ожидания на промах, то есть данные идут уже не из L2.
+При этом cycles/access меняется слабо, так как аппаратная предвыборка скрывает большую часть задержек.

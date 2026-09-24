@@ -1,0 +1,98 @@
+\chapter{Исследование TLB}
+\label{ch:tlb}
+
+\section{Параметры исследования}
+
+Для страницы \texttt{16384 B} и типа \texttt{double} на одной странице размещается
+$$
+16384 / 8 = 2048
+$$
+элементов, поэтому $\mathit{stride} = 2048$ используется для обращения приблизительно к одному элементу на страницу.
+
+Число затрагиваемых страниц обоих массивов и количество обращений:
+$$
+\mathit{pages} = \frac{2N \times 8}{16384}, \qquad
+N_{access} = \frac{N}{\mathit{stride}} \times \mathit{repeats} = 2^{24}.
+$$
+
+Одно обращение --- одна итерация цикла, затрагивающая страницы обоих массивов.
+
+Доступные TLB-события приведены в таблице~\ref{tab:events-tlb}.
+Аналоги \texttt{dTLB-loads} и \texttt{dTLB-load-misses} --- \texttt{L1D\_TLB\_ACCESS} и \texttt{L1D\_TLB\_MISS}, дополнительно считается \texttt{L2\_TLB\_MISS\_DATA}:
+$$
+\mathit{dTLB\ miss\ rate} = \frac{\texttt{L1D\_TLB\_MISS}}{\texttt{L1D\_TLB\_ACCESS}}.
+$$
+
+Как и в главе~\ref{ch:stride}, из всех показателей вычитается запуск с $\mathit{repeats} = 0$, который выполняется для каждого \texttt{N}.
+
+\begin{commands}
+sudo python3 scripts/tlb.py
+\end{commands}
+
+\includescript{tlb.py}{Измерения для разного числа страниц}
+
+\section{Измеренные показатели}
+
+\begin{table}[H]
+\caption{Зависимость производительности от числа затрагиваемых страниц}
+\label{tab:tlb}
+\small
+\begin{tabularx}{\textwidth}{|r|r|r|C|C|}
+	\hline
+	Страниц & $N$ & \texttt{repeats} & \texttt{cycles} & \textit{cycles/access} \\
+	\hline
+	\texttt{128} & \texttt{131072} & \texttt{262144} & \texttt{357716639} & \texttt{21.32} \\
+	\hline
+	\texttt{256} & \texttt{262144} & \texttt{131072} & \texttt{444587464} & \texttt{26.50} \\
+	\hline
+	\texttt{512} & \texttt{524288} & \texttt{65536} & \texttt{423191687} & \texttt{25.22} \\
+	\hline
+	\texttt{1024} & \texttt{1048576} & \texttt{32768} & \texttt{430167662} & \texttt{25.64} \\
+	\hline
+	\texttt{2048} & \texttt{2097152} & \texttt{16384} & \texttt{779460023} & \texttt{46.46} \\
+	\hline
+	\texttt{4096} & \texttt{4194304} & \texttt{8192} & \texttt{692875488} & \texttt{41.30} \\
+	\hline
+	\texttt{8192} & \texttt{8388608} & \texttt{4096} & \texttt{585662352} & \texttt{34.91} \\
+	\hline
+	\texttt{16384} & \texttt{16777216} & \texttt{2048} & \texttt{486510270} & \texttt{29.00} \\
+	\hline
+	\texttt{32768} & \texttt{33554432} & \texttt{1024} & \texttt{521253294} & \texttt{31.07} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Зависимость TLB misses от числа затрагиваемых страниц}
+\label{tab:tlb-misses}
+\small
+\begin{tabularx}{\textwidth}{|r|C|C|C|C|}
+	\hline
+	Страниц & Обращения к L1 dTLB & Промахи L1 dTLB & dTLB miss rate, \% & Промахи L2 TLB \\
+	\hline
+	\texttt{128} & \texttt{50333787} & \texttt{1152} & \texttt{0.00} & \texttt{16} \\
+	\hline
+	\texttt{256} & \texttt{92306340} & \texttt{41968097} & \texttt{45.47} & \texttt{400} \\
+	\hline
+	\texttt{512} & \texttt{93324298} & \texttt{42989568} & \texttt{46.06} & \texttt{42} \\
+	\hline
+	\texttt{1024} & \texttt{96310823} & \texttt{45964302} & \texttt{47.72} & \texttt{1769} \\
+	\hline
+	\texttt{2048} & \texttt{110235436} & \texttt{59849233} & \texttt{54.29} & \texttt{24631} \\
+	\hline
+	\texttt{4096} & \texttt{156936737} & \texttt{106530159} & \texttt{67.88} & \texttt{33583663} \\
+	\hline
+	\texttt{8192} & \texttt{373205322} & \texttt{322676315} & \texttt{86.46} & \texttt{33608732} \\
+	\hline
+	\texttt{16384} & \texttt{564996073} & \texttt{514270752} & \texttt{91.02} & \texttt{33680098} \\
+	\hline
+	\texttt{32768} & \texttt{779877073} & \texttt{728399183} & \texttt{93.40} & \texttt{33983761} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\section{Вывод}
+
+В седьмом этапе получена зависимость количества и доли TLB misses и производительности от числа используемых страниц.
+Промахи L1 dTLB появляются при переходе от 128 к 256 страницам, а промахи L2 TLB --- при переходе от 2048 к 4096 страницам, после чего промахивается практически каждое обращение к странице.
+После переполнения L1 dTLB cycles/access растёт с 21 до 26 тактов, однако наибольшее значение (46 тактов) наблюдается при 2048 страницах, ещё до переполнения L2 TLB, поэтому производительность в этом исследовании определяется не только TLB.
