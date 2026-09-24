@@ -1,0 +1,13 @@
+#!/bin/sh
+# Usage: sudo ./mperf [-e EVENT,EVENT,...] command [args...]
+
+events=FIXED_CYCLES,FIXED_INSTRUCTIONS
+if [ "$1" = "-e" ]; then
+    events=$2
+    shift 2
+fi
+
+MPERF_EVENTS=$events
+DYLD_INSERT_LIBRARIES=$(cd "$(dirname "$0")" && pwd)/libmperf.dylib
+export MPERF_EVENTS DYLD_INSERT_LIBRARIES
+exec "$@"

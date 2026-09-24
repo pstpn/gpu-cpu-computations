@@ -1,0 +1,170 @@
+\chapter{Определение характеристик системы и подготовка средств профилирования}
+\label{ch:system}
+
+\section{Конфигурация системы}
+
+\begin{commands}
+system_profiler SPHardwareDataType
+sysctl hw.physicalcpu hw.logicalcpu
+sysctl hw.perflevel0 hw.perflevel1
+getconf PAGESIZE
+uname -r
+sw_vers
+\end{commands}
+
+\begin{table}[H]
+\caption{Конфигурация системы}
+\label{tab:system}
+\begin{tabularx}{\textwidth}{|l|X|}
+	\hline
+	Параметр & Значение \\
+	\hline
+	Модель CPU & \texttt{Apple M3 Pro (MacBook Pro, Mac15,6)} \\
+	\hline
+	Число ядер & \texttt{11} \\
+	\hline
+	Число потоков & \texttt{11} \\
+	\hline
+	L1d на ядро & \texttt{P: 131072 B; E: 65536 B} \\
+	\hline
+	L2 & \texttt{P: 16777216 B; E: 4194304 B} \\
+	\hline
+	L3 / LLC & --- \\
+	\hline
+	Размер страницы памяти & \texttt{16384 B} \\
+	\hline
+	ОС / ядро & \texttt{macOS 26.6.1 / Darwin 25.6.0} \\
+	\hline
+	Версия \texttt{perf} & --- \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\section{Проверка \texttt{perf} и доступа к аппаратным счётчикам}
+\label{sec:tools}
+
+\begin{commands}
+which perf
+/usr/bin/time -l echo test
+\end{commands}
+
+Утилита \texttt{perf} и системный вызов \texttt{perf\_event\_open()} есть только в Linux.
+В macOS счётчики \texttt{cycles} и \texttt{instructions} выводит \texttt{/usr/bin/time -l}.
+
+Остальные события PMU считываются утилитой \texttt{mperf} (файлы \texttt{mperf.c} и \texttt{mperf}), аналогом \texttt{perf stat -e}.
+Она подключает к программе библиотеку, которая через закрытый фреймворк \texttt{kperf} настраивает счётчики и выводит их значения для основного потока программы.
+
+\begin{commands}
+make libmperf.dylib
+sudo ./mperf -e FIXED_CYCLES,FIXED_INSTRUCTIONS,INST_INT_LD,\
+INST_SIMD_LD,L1D_CACHE_MISS_LD_NONSPEC ./daxpy 1000000 100 1
+\end{commands}
+
+\section{Доступные аппаратные события}
+
+\begin{commands}
+python3 scripts/events.py > events.txt
+grep -i cache events.txt
+grep -i tlb events.txt
+grep -i branch events.txt
+\end{commands}
+
+\includescript{events.py}{Вывод списка событий PMU}
+
+Из вывода \texttt{grep} исключены события, в описании которых кэш или переходы только упоминаются (\texttt{ATOMIC\_OR\_EXCLUSIVE\_*}, \texttt{INST\_INT\_ST}, \texttt{INST\_LDST}, \texttt{INST\_INT\_ALU}, \texttt{FETCH\_RESTART}, \texttt{FLUSH\_RESTART\_OTHER\_NONSPEC}).
+
+\begin{table}[H]
+\caption{Доступные события кэша}
+\label{tab:events-cache}
+\small
+\begin{tabularx}{\textwidth}{|l|X|}
+	\hline
+	Событие & Описание \\
+	\hline
+	\texttt{L1D\_CACHE\_MISS\_LD} & загрузки с промахом в L1d \\
+	\hline
+	\texttt{L1D\_CACHE\_MISS\_LD\_NONSPEC} & завершённые загрузки с промахом в L1d \\
+	\hline
+	\texttt{L1D\_CACHE\_MISS\_ST} & сохранения с промахом в L1d \\
+	\hline
+	\texttt{L1D\_CACHE\_MISS\_ST\_NONSPEC} & завершённые сохранения с промахом в L1d \\
+	\hline
+	\texttt{L1D\_CACHE\_WRITEBACK} & изменённые строки, записанные из L1d в общий L2 \\
+	\hline
+	\texttt{L1I\_CACHE\_MISS\_DEMAND} & промахи L1i при выборке инструкций, требующие загрузки новой строки \\
+	\hline
+	\texttt{LDST\_UNIT\_OLD\_L1D\_CACHE\_MISS} & такты, в течение которых старая операция загрузки или сохранения ожидает данные после промаха L1d \\
+	\hline
+	\texttt{LDST\_UNIT\_WAITING\_OLD\_L1D\_CACHE\_MISS} & то же, при условии что планировщик не выдал ни одной микрооперации \\
+	\hline
+	\texttt{MAP\_DISPATCH\_BUBBLE\_IC} & такты простоя блока Map из-за L1i \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Доступные события TLB}
+\label{tab:events-tlb}
+\small
+\begin{tabularx}{\textwidth}{|l|X|}
+	\hline
+	Событие & Описание \\
+	\hline
+	\texttt{L1D\_TLB\_ACCESS} & обращения загрузок и сохранений к L1 dTLB \\
+	\hline
+	\texttt{L1D\_TLB\_MISS} & обращения загрузок и сохранений с промахом в L1 dTLB \\
+	\hline
+	\texttt{L1D\_TLB\_MISS\_NONSPEC} & завершённые загрузки и сохранения с промахом в L1 dTLB \\
+	\hline
+	\texttt{L1D\_TLB\_FILL} & трансляции, загруженные в L1 dTLB \\
+	\hline
+	\texttt{L2\_TLB\_MISS\_DATA} & загрузки и сохранения с промахом в L2 TLB \\
+	\hline
+	\texttt{L1I\_TLB\_MISS\_DEMAND} & выборки инструкций с промахом в L1 iTLB \\
+	\hline
+	\texttt{L1I\_TLB\_FILL} & трансляции, загруженные в L1 iTLB \\
+	\hline
+	\texttt{L2\_TLB\_MISS\_INSTRUCTION} & выборки инструкций с промахом в L2 TLB \\
+	\hline
+	\texttt{MAP\_DISPATCH\_BUBBLE\_ITLB} & такты простоя блока Map из-за L1 iTLB \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Доступные события переходов}
+\label{tab:events-branch}
+\small
+\begin{tabularx}{\textwidth}{|l|X|}
+	\hline
+	Событие & Описание \\
+	\hline
+	\texttt{INST\_BRANCH} & завершённые инструкции перехода, включая вызовы и возвраты \\
+	\hline
+	\texttt{INST\_BRANCH\_TAKEN} & завершённые переходы, которые были выполнены (taken) \\
+	\hline
+	\texttt{INST\_BRANCH\_CALL} & завершённые вызовы подпрограмм \\
+	\hline
+	\texttt{INST\_BRANCH\_RET} & завершённые возвраты из подпрограмм \\
+	\hline
+	\texttt{INST\_BRANCH\_INDIR} & завершённые косвенные переходы, включая косвенные вызовы \\
+	\hline
+	\texttt{BRANCH\_MISPRED\_NONSPEC} & все неверно предсказанные переходы \\
+	\hline
+	\texttt{BRANCH\_COND\_MISPRED\_NONSPEC} & неверно предсказанные условные переходы \\
+	\hline
+	\texttt{BRANCH\_INDIR\_MISPRED\_NONSPEC} & неверно предсказанные косвенные переходы, включая вызовы и возвраты \\
+	\hline
+	\texttt{BRANCH\_CALL\_INDIR\_MISPRED\_NONSPEC} & неверно предсказанные косвенные вызовы \\
+	\hline
+	\texttt{BRANCH\_RET\_INDIR\_MISPRED\_NONSPEC} & неверно предсказанные возвраты из подпрограмм \\
+	\hline
+\end{tabularx}
+\end{table}
+
+Недоступные события: \texttt{cache-references}, \texttt{cache-misses}, \texttt{LLC-loads}, \texttt{LLC-load-misses}.
+В базе событий Apple M3 нет событий кэша L2 и SLC, события кэша доступны только для L1.
+
+\section{Вывод}
+
+В первом этапе получена и зафиксирована конфигурация системы.

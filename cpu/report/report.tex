@@ -1,0 +1,70 @@
+\documentclass{itmo}
+
+\setlist[itemize]{label=---}
+\setlist[enumerate]{label=\arabic*)}
+
+\usepackage{dcolumn}
+\newcolumntype{d}[1]{D{.}{.}{#1}}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+
+\NewDocumentCommand{\todo}{m}{\textcolor{red}{[#1]}}
+\pdfstringdefDisableCommands{\def\todo#1{#1}}
+
+\renewcommand{\lstlistingname}{Листинг}
+
+\lstdefinestyle{highlight}{
+	keywordstyle=\color{keywords},
+	stringstyle=\color{strings},
+	commentstyle=\color{comments},
+	float=false,
+	columns=fullflexible,
+	keepspaces=true,
+	upquote=true,
+}
+
+\lstdefinestyle{code}{
+	style=highlight,
+	basicstyle=\footnotesize\ttfamily,
+	frame=leftline,
+	xleftmargin=3.4pt,
+}
+
+\lstnewenvironment{commands}[1][]{\lstset{
+	style=highlight,
+	language=bash,
+	frame=single,
+	texcl=true,
+	inputencoding=utf8,
+	xleftmargin=3.4pt,
+	xrightmargin=3.4pt,
+	#1,
+}}{}
+
+\NewDocumentCommand{\includescript}{mm}{%
+	\lstinputlisting[style=code, language=Python, caption={#2}, label={lst:#1}]{../scripts/#1}%
+}
+
+\begin{document}
+
+\makereporttitle{}
+	{лабораторной работе №1}
+	{Вычисления на GPU}
+	{Исследование производительности CPU и подсистемы памяти}
+	{}
+	{Постнов~С.~А./P4135}
+	{Лукашов~И.~В./Старший преподаватель}
+
+\maketableofcontents
+
+\input{chapters/00-goal}
+\input{chapters/01-system}
+\input{chapters/02-baseline}
+\input{chapters/03-repeatability}
+\input{chapters/04-working-set}
+\input{chapters/05-stride}
+\input{chapters/06-data-type}
+\input{chapters/07-tlb}
+\input{chapters/08-branch}
+\input{chapters/09-analysis}
+
+\end{document}

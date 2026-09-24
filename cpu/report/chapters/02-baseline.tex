@@ -1,0 +1,47 @@
+\chapter{Сборка тестового приложения и базовое профилирование}
+\label{ch:baseline}
+
+\section{Параметры исследования}
+
+В качестве тестовой нагрузки используется вычислительный цикл:
+$$
+y_i = a x_i + y_i.
+$$
+
+Программа позволяет изменять количество элементов \texttt{N}, число повторов \texttt{repeats}, шаг доступа \texttt{stride} и тип данных.
+
+\begin{commands}
+g++ daxpy.cpp -O3 -std=c++17 -o daxpy
+./daxpy 1000000 100 1
+/usr/bin/time -l ./daxpy 1000000 100 1
+\end{commands}
+
+Здесь \texttt{1000000} --- количество элементов, \texttt{100} --- число повторов, \texttt{1} --- \texttt{stride}.
+
+$$
+\mathit{IPC} = \frac{\mathit{Instructions}}{\mathit{Cycles}}.
+$$
+
+\section{Измеренные показатели}
+
+\begin{table}[H]
+\caption{Базовые показатели (\texttt{./daxpy 1000000 100 1})}
+\label{tab:baseline}
+\begin{tabularx}{\textwidth}{|X|r|}
+	\hline
+	Показатель & Значение \\
+	\hline
+	Время выполнения, с & \texttt{0.04} \\
+	\hline
+	\texttt{cycles} & \texttt{125609823} \\
+	\hline
+	\texttt{instructions} & \texttt{721017564} \\
+	\hline
+	IPC & \texttt{5.7401} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\section{Вывод}
+
+На втором этапе получены корректно собранная и запускаемая программа, а также набор базовых метрик: время выполнения, cycles, instructions и рассчитанное значение IPC.

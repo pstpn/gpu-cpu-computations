@@ -1,0 +1,35 @@
+\chapter{Исследование повторяемости измерений}
+\label{ch:repeat}
+
+\section{Параметры исследования}
+
+Один и тот же запуск повторяется 10 раз, после чего замеряются статистики:
+
+\begin{commands}
+python3 scripts/repeatability.py
+\end{commands}
+
+\includescript{repeatability.py}{Многократный запуск и расчёт статистик}
+
+\section{Измеренные показатели}
+
+\begin{table}[H]
+\caption{Результаты многократного запуска \texttt{./daxpy 1000000 100 1}}
+\label{tab:repeat}
+\begin{tabularx}{\textwidth}{|X|C|C|}
+	\hline
+	Показатель & Среднее значение & Разброс \\
+	\hline
+	Время выполнения, с & \texttt{0.0340062} & \texttt{7.14\%} \\
+	\hline
+	\texttt{cycles} & \texttt{1.29648e+08} & \texttt{8.06\%} \\
+	\hline
+	\texttt{instructions} & \texttt{7.20968e+08} & \texttt{0.09\%} \\
+	\hline
+\end{tabularx}
+\end{table}
+
+\section{Вывод}
+
+В третьем этапе получены среднее значение и оценка разброса времени/метрик.
+Измерения воспроизводимы, однако случаются выбросы в некоторых отдельных замерах.
